@@ -1,5 +1,5 @@
 /* Digi AK — wanders along the bottom of the page, stops to wave,
-   and comments on whichever section the visitor is looking at.
+   and comments on the section the visitor is viewing (also when clicked).
    Keep ak-walk.png and ak-wave.png in the same folder as this file. */
 (function () {
   var base = document.currentScript.src.replace(/[^/]*$/, '');
@@ -19,12 +19,6 @@
     now:                "Right now: building, learning, thinking about startups.",
     contact:            "You made it this far. Let's make something."
   };
-  var GENERIC = [
-    "I get bored when things stay as ideas.",
-    "Ask me about WE FOR US.",
-    "Yes. I really like Spider-Man.",
-    "Building something? Let's talk."
-  ];
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var css = document.createElement('style');
@@ -51,7 +45,7 @@
   document.body.appendChild(root);
 
   var x = 40, target = x, mode = 'wave', timer, last = 0, bubbleTimer;
-  var current = null, lastSpoke = 0, clicked = {};
+  var current = null;
 
   function show(which) { walk.style.display = which === 'walk' ? '' : 'none'; wave.style.display = which === 'wave' ? '' : 'none'; }
   function width() { return root.offsetWidth || 100; }
@@ -107,35 +101,31 @@
     }
     return null;
   }
-  var ticking = false;
+  var spoken = {}, lastSpoke = 0, ticking = false;
+  function talk(k) {
+    lastSpoke = Date.now(); spoken[k] = true;
+    stand(4200); say(BY_SECTION[k], 4000);
+  }
   function onScroll() {
     if (ticking) return; ticking = true;
     requestAnimationFrame(function () {
       ticking = false;
       var k = sectionKey();
-      if (k && k !== current) {
-        current = k;
-        var now = Date.now();
-        if (now - lastSpoke > 2500 && k !== 'hero') {   // hero is covered by the greeting
-          lastSpoke = now;
-          stand(4200); say(BY_SECTION[k], 4000);
-        }
-      }
+      if (!k || k === current) return;
+      current = k;
+      // speaks once per section, never in a rush, hero is covered by the greeting
+      if (k !== 'hero' && !spoken[k] && Date.now() - lastSpoke > 2500) talk(k);
     });
   }
-
-  function onClick() {
-    lastSpoke = Date.now();
-    var text;
-    if (current && !clicked[current]) { clicked[current] = true; text = BY_SECTION[current]; }
-    else text = GENERIC[Math.floor(Math.random() * GENERIC.length)];
-    stand(3500); say(text);
+  function onClick() {                      // click = say the line for this section again
+    var k = sectionKey() || 'hero';
+    talk(k);
   }
-  walk.addEventListener('click', onClick); wave.addEventListener('click', onClick);
   addEventListener('scroll', onScroll, { passive: true });
+  walk.addEventListener('click', onClick); wave.addEventListener('click', onClick);
   addEventListener('resize', function () { x = Math.min(x, maxX()); place(); });
 
   place(); show('wave'); current = sectionKey();
-  setTimeout(function () { lastSpoke = Date.now(); say(GREETING, 3200); }, 600);
+  setTimeout(function () { say(GREETING, 3200); }, 600);
   if (!reduce) { timer = setTimeout(go, 4000); requestAnimationFrame(tick); }
 })();
